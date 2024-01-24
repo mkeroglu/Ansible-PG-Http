@@ -1,0 +1,32 @@
+---
+- name: Write to PostgreSQL from CSV
+  hosts: centos
+  vars_files:
+    - ./vars.yaml
+  gather_facts: false
+  tasks:
+    - name: Read CSV
+      read_csv:
+        path: "{{ csv_file }}"
+        delimiter: ','
+      register: csv_data
+      when: "'postgres' in inventory_hostname"
+
+    - name: Get CSV column names
+      set_fact:
+        column_names: "{{ csv_data.list[0] }}"
+      when: "'postgres' in inventory_hostname"
+
+    - name: Write PostgreSQL
+      postgresql_query:
+        db: "{{ login_db }}"
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        query: |
+          INSERT INTO "{{ table_name }}" ({{ column_names | join(', ') }})
+          VALUES
+          {% for row in csv_data.list %}
+            {% set values = row | map('quote') | join(', ') %}
+            ({{ values }}){% if not loop.last %},{% endif %}
+          {% endfor %}
+      when: "'postgres' in inventory_hostname"
