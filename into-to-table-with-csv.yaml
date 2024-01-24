@@ -17,6 +17,7 @@
         owner: postgres
         group: postgres
         mode: "777"
+        selevel: "s0"
       when: "'postgres' in inventory_hostname"
 
     - name: Change Mode
@@ -25,16 +26,9 @@
         mode: "777"
       when: "'postgres' in inventory_hostname"
 
-- name: Chcon with SELINUX
-  hosts: centos
-  vars_files:
-    - ./vars2.yaml
-  tasks:
-    - name: Chcon with SELINUX
-      sefcontext:
-        target: "{{ csv_file }}"
-        setype: "postgresql_tmp_t"
-      become: true
+    - name: Change SELINUX Options
+      command: chcon -t postgresql_tmp_t "{{ csv_file }}"
+      become: yes
       when: "'postgres' in inventory_hostname"
 
 - name: Write to PostgreSQL from CSV

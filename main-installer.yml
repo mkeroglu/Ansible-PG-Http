@@ -30,6 +30,7 @@
   ansible.builtin.yum:
     name:
       - python
+      - php
       - python3
       - python3-pip
       - postgresql-devel
@@ -37,21 +38,8 @@
       - libselinux-python
       - libselinux-python3
       - gcc
+      - php-pgsql
       - python-devel
       - policycoreutils-python
       - libsemanage-python
     state: present
-  when: "'postgres' in inventory_hostname"
-
-- name: With Yum Installation Python to HTTPD Host
-  ansible.builtin.yum:
-    name:
-      - python
-      - php
-      - python3
-      - libselinux-python
-      - libsemanage-python
-      - libselinux-python3
-      - php-pgsql
-    state: present
-  when: "'http' in inventory_hostname"
