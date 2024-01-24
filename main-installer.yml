@@ -1,0 +1,53 @@
+---
+- name: Check if PostgreSQL package is installed
+  command: rpm -q postgresql-server
+  register: postgresql_installed
+  ignore_errors: true
+  when: "'postgres' in inventory_hostname"
+
+- name: Installation PostgreSQL
+  ansible.builtin.yum:
+    name:
+      - postgresql-server
+    state: present
+  when: "'postgres' in inventory_hostname and postgresql_installed.rc != 0"
+  register: postgresql_installed
+
+- name: Check if Http package is installed
+  command: rpm -q httpd
+  register: httpd_installed
+  ignore_errors: true
+  when: "'http' in inventory_hostname"
+
+- name: Installation HTTPD (Apache)
+  ansible.builtin.yum:
+    name:
+      - httpd
+    state: present
+  when: "'http' in inventory_hostname and httpd_installed.rc != 0"
+
+- name: With Yum Installation Python to PostgreSQL Host
+  ansible.builtin.yum:
+    name:
+      - python
+      - python3
+      - python3-pip
+      - postgresql-devel
+      - python3-devel
+      - gcc
+      - python-devel
+    state: present
+  when: "'postgres' in inventory_hostname"
+
+- name: With Yum Installation Python to HTTPD Host
+  ansible.builtin.yum:
+    name:
+      - python
+      - php
+      - python3
+      - libselinux-python
+      - libselinux-python3
+      - php-pgsql
+    state: present
+  when: "'http' in inventory_hostname"
+
