@@ -22,7 +22,7 @@
         executable: pip3
       when: "'postgres' in inventory_hostname"
 
-- name: PostgreSQL InıtDB 
+- name: PostgreSQL InıtDB
   hosts: centos
   vars_files:
     - ./vars.yaml
@@ -60,7 +60,7 @@
         path: /var/lib/pgsql/data/postgresql.conf
         block: |
           listen_addresses = '*'
-      when: "'postgres' in inventory_hostname and not listen_addresses_configured.rc == 0"
+      when: "'postgres' in inventory_hostname and not listen_addresses_configured.rc != 0"
 
 - name: PostgreSQL Configuration-II
   hosts: centos
@@ -164,6 +164,12 @@
         executable: pip3
       when: "'http' in inventory_hostname"
 
+    - name: Add Line to Hosts  File
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ custom_ip }} {{ custom_hostname }}"
+      when: "'http' in inventory_hostname"
+
 - name: Configuration Firewall - HTTP
   hosts: centos
   become: yes
@@ -245,4 +251,3 @@
         regexp: "<your_postgresql_db>"
         replace: "{{ login_db }}"
       when: "'http' in inventory_hostname"
-
