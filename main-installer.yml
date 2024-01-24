@@ -34,8 +34,12 @@
       - python3-pip
       - postgresql-devel
       - python3-devel
+      - libselinux-python
+      - libselinux-python3
       - gcc
       - python-devel
+      - policycoreutils-python
+      - libsemanage-python
     state: present
   when: "'postgres' in inventory_hostname"
 
@@ -50,4 +54,3 @@
       - php-pgsql
     state: present
   when: "'http' in inventory_hostname"
-
