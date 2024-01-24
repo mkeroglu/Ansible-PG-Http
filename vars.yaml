@@ -1,0 +1,29 @@
+login_user: postgres
+login_password: q1w2e3r4
+ansible_python_interpreter: /usr/bin/python3
+postgres_db: Sekom
+postgres_user: sekom
+postgres_password: q1w2e3r4
+table_name: Personals
+columns:
+  - id serial PRIMARY KEY
+  - Name VARCHAR(50)
+  - Surname VARCHAR(50)
+  - JobTitle VARCHAR(50)
+csv_file: /test.csv
+column_1: id
+column_2: name
+column_3: surname
+column_4: jobtitle
+column_value_1: 'DEFAULT'
+column_value_2: 'Mehmet Kutay'
+column_value_3: 'Eroglu'
+column_value_4: 'DevOPS ve Entegrasyon Mühendisi'
+login_user: postgres
+login_password: q1w2e3r4
+login_db: Sekom
+login_host: postgresql-sekom.mkeroglu.com.tr 
+ansible_python_interpreter: /usr/bin/python3
+content_to_add:
+  - LoadModule php5_module modules/libphp5.so
+  - AddType application/x-httpd-php .php
