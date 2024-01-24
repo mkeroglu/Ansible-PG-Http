@@ -1,0 +1,10 @@
+---
+- name: Check if PostgreSQL directory exists
+  stat:
+    path: /var/lib/pgsql/data/pg_hba.conf
+  register: pg_data_dir
+
+- name: Run PostgreSQL InitDB if directory doesn't exist
+  command: postgresql-setup initdb
+  when: "'postgres' in inventory_hostname and pg_data_dir.stat.exists == False"
+
