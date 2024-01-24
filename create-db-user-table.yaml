@@ -1,0 +1,47 @@
+---
+- name: PostgreSQL Tablo Oluşturma
+  hosts: centos
+  become: yes
+  vars_files:
+    - ./vars.yaml
+
+  tasks:
+    - name: PostgreSQL veritabanını oluştur
+      postgresql_db:
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        name: "{{ postgres_db }}"
+        state: present
+      when: "'postgres' in inventory_hostname"
+
+    - name: PostgreSQL kullanıcısını oluştur veya güncelle
+      postgresql_user:
+        name: "{{ postgres_user }}"
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        password: "{{ postgres_password }}"
+        encrypted: yes
+        state: present
+      when: "'postgres' in inventory_hostname"
+
+    - name: PostgreSQL kullanıcısına veritabanı yetkilerini ver
+      postgresql_privs:
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        database: "{{ postgres_db }}"
+        objs: ALL_IN_SCHEMA
+        roles: "{{ postgres_user }}"
+        privs: ALL
+        state: present
+      when: "'postgres' in inventory_hostname"
+
+    - name: PostgreSQL tablosunu oluştur
+      postgresql_table:
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        db: "{{ postgres_db }}"
+        name: "{{ table_name }}"
+        columns: "{{ columns }}"
+        state: present
+      when: "'postgres' in inventory_hostname"
+
