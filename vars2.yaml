@@ -10,8 +10,8 @@ columns:
   - Name VARCHAR(50)
   - Surname VARCHAR(50)
   - JobTitle VARCHAR(50)
-
-table_name: Personal List-2
+csv_file: /tmp/test.csv
+table_name: Personals
 column_1: id
 column_2: name
 column_3: surname
