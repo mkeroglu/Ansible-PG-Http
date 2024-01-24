@@ -3,46 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PostgreSQL Bağlantısı</title>
+    <title>PostgreSQL Table List with Contents</title>
 </head>
 <body>
 
-    <h2>PostgreSQL Table</h2>
+    <h2>PostgreSQL Table List with Contents</h2>
 
     <?php
-    $connection = pg_connect("host=10.106.31.106 dbname=Sekom user=postgres password=q1w2e3r4");
+    $host = "<your_postgresql_host>";
+    $db = "<your_postgresql_db>";
+    $user = "<your_postgresql_user>";
+    $password = "<your_postgresql_password>";
+    $connection = pg_connect("host=$host dbname=$db user=$user password=$password");
     if (!$connection) {
         echo "ERROR.<br>";
         exit;
     }
 
-    $result = pg_query($connection, 'SELECT * FROM "Personal List-2"');
-    if(!$result) {
+    // Tüm tablo isimlerini dinamik olarak al
+    $result = pg_query($connection, "SELECT table_name FROM information_schema.tables WHERE table_schema='public'");
+
+    if (!$result) {
         echo "RESULT ERROR.<br>";
         exit;
     }
-    ?>
 
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>NAME</th>
-            <th>SURNAME</th>
-            <th>JOB-TITLE</th>
-        </tr>
-        <?php
-        while($row = pg_fetch_assoc($result)) {
-            echo "
-            <tr>
-                <td>{$row['id']}</td>
-                <td>{$row['name']}</td>
-                <td>{$row['surname']}</td>
-                <td>{$row['jobtitle']}</td>
-            </tr>
-            ";
+    // Her tabloyu döngü içinde işle
+    while ($row = pg_fetch_assoc($result)) {
+        $tableName = $row['table_name'];
+
+        $contentResult = pg_query_params($connection, "SELECT * FROM " . pg_escape_identifier($tableName), array());
+
+        if (!$contentResult) {
+            echo " - Content ERROR for table {$tableName}: " . pg_last_error($connection);
+        } else {
+            $numRows = pg_num_rows($contentResult);
+
+            if ($numRows > 0) {
+                echo "<h3>{$tableName}</h3>";
+                echo "<table border='1'>";
+
+                // Tablo başlıkları
+                echo "<tr>";
+                for ($i = 0; $i < pg_num_fields($contentResult); $i++) {
+                    echo "<th>" . pg_field_name($contentResult, $i) . "</th>";
+                }
+                echo "</tr>";
+
+                // Tablo içeriği
+                while ($contentRow = pg_fetch_assoc($contentResult)) {
+                    echo "<tr>";
+                    foreach ($contentRow as $value) {
+                        echo "<td>{$value}</td>";
+                    }
+                    echo "</tr>";
+                }
+
+                echo "</table>";
+            }
         }
-        ?>
-    </table>
+    }
+    ?>
 
 </body>
 </html>
