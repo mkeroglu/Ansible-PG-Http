@@ -50,6 +50,7 @@
       - php
       - python3
       - libselinux-python
+      - libsemanage-python
       - libselinux-python3
       - php-pgsql
     state: present

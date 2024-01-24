@@ -173,8 +173,16 @@
 - name: Configuration Firewall - HTTP
   hosts: centos
   become: yes
-
+  vars_files:
+    - ./vars2.yaml
   tasks:
+    - name: Permit Network Connect HTTP - SELINUX
+      ansible.posix.seboolean:
+        name: httpd_can_network_connect
+        state: yes
+        persistent: yes
+      when: "'http' in inventory_hostname"
+
     - name: Permit Http Traffic
       ansible.posix.firewalld:
         service: http
