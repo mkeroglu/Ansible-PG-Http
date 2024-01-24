@@ -1,0 +1,248 @@
+---
+- name: PostgreSQL & HTTPD Installation
+  hosts: centos
+  vars_files:
+    - ./vars2.yaml
+  become: yes
+  roles:
+    - installer
+
+- name: Installation Python Packages With Pip3
+  hosts: centos
+  vars_files:
+    - ./vars.yaml
+  become: yes
+  tasks:
+    - name: Install Python Packages
+      ansible.builtin.pip:
+        name:
+          - psycopg2
+          - psycopg2-binary
+          - firewall
+        executable: pip3
+      when: "'postgres' in inventory_hostname"
+
+- name: PostgreSQL InıtDB 
+  hosts: centos
+  vars_files:
+    - ./vars.yaml
+  become: yes
+  roles:
+    - postgresql_setup
+
+- name: PostgreSQL Configuration
+  hosts: centos
+  vars_files:
+    - ./vars2.yaml
+  become: yes
+  tasks:
+    - name: Check if pg_hba.conf is configured
+      shell: grep -q "host    all             all             0.0.0.0/0               md5" /var/lib/pgsql/data/pg_hba.conf
+      register: pg_hba_configured
+      ignore_errors: true
+      when: "'postgres' in inventory_hostname"
+
+    - name: Add pg_hba.conf entry if not configured
+      blockinfile:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        block: |
+          host    all             all             0.0.0.0/0               md5
+      when: "'postgres' in inventory_hostname and pg_hba_configured.rc != 0"
+
+    - name: Check if postgresql.conf is configured
+      shell: grep -q "listen_addresses = '*'" /var/lib/pgsql/data/postgresql.conf
+      register: listen_addresses_configured
+      ignore_errors: true
+      when: "'postgres' in inventory_hostname"
+
+    - name: Add listen_addresses to postgresql.conf if not configured
+      blockinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        block: |
+          listen_addresses = '*'
+      when: "'postgres' in inventory_hostname and not listen_addresses_configured.rc == 0"
+
+- name: PostgreSQL Configuration-II
+  hosts: centos
+  vars_files:
+    - ./vars.yaml
+  become: yes
+  tasks:
+    - name: PostgreSQL Start Enable
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+      when: "'postgres' in inventory_hostname"
+
+    - name: Postgres Change Password
+      postgresql_user:
+        name: "{{ login_user }}"
+        password: "{{ login_password }}"
+        encrypted: yes
+      become: true
+      become_user: postgres
+      when: "'postgres' in inventory_hostname"
+
+- name: PostgreSQL Configuration-II
+  hosts: centos
+  vars_files:
+    - ./vars2.yaml
+  become: yes
+  tasks:
+    - name: pghba-localhost
+      replace:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        regexp: "local   all             all                                     peer"
+        replace: "local   all             all                                     md5"
+      when: "'postgres' in inventory_hostname"
+
+    - name: pghba-127.0.0.1
+      replace:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        regexp: "host    all             all             127.0.0.1/32            ident"
+        replace: "host    all             all             127.0.0.1/32            md5"
+      when: "'postgres' in inventory_hostname"
+
+    - name: pghba-127.0.0.1.1
+      replace:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        regexp: "host    all             all             127.0.0.1/32            scram-sha-256"
+        replace: "host    all             all             127.0.0.1/32            md5"
+      when: "'postgres' in inventory_hostname"
+
+    - name: pghba-::1/128
+      replace:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        regexp: "host    all             all             ::1/128                 ident"
+        replace: "host    all             all             ::1/128                 md5"
+      when: "'postgres' in inventory_hostname"
+
+- name: Restart PostgreSQL
+  hosts: centos
+  vars_files:
+    - ./vars.yaml
+  become: yes
+  tasks:
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql
+        state: restarted
+      when: "'postgres' in inventory_hostname"
+
+
+- name: HTTP Configuration
+  hosts: centos
+  vars_files:
+    - ./vars.yaml
+  become: yes
+  tasks:
+    - name: Change from HTML to PHP
+      replace:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: DirectoryIndex index.html
+        replace: DirectoryIndex index.php
+      when: "'http' in inventory_hostname"
+
+    - name: Add content to file
+      lineinfile:
+        path: "/etc/httpd/conf/httpd.conf"
+        line: "{{ item }}"
+      with_items: "{{ content_to_add }}"
+      when: "'http' in inventory_hostname"
+
+    - name: Restart HTTPD
+      systemd:
+        name: httpd
+        state: restarted
+      when: "'http' in inventory_hostname"
+
+    - name: Install Python Packages
+      ansible.builtin.pip:
+        name:
+          - firewall
+        executable: pip3
+      when: "'http' in inventory_hostname"
+
+- name: Configuration Firewall - HTTP
+  hosts: centos
+  become: yes
+
+  tasks:
+    - name: Permit Http Traffic
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        state: enabled
+      notify: Restart firewalld
+      become: yes
+      when: "'http' in inventory_hostname"
+
+  handlers:
+    - name: Restart firewalld
+      service:
+        name: firewalld
+        state: restarted
+      when: "'http' in inventory_hostname"
+
+- name: Configuration Firewall - PostgreSQL
+  hosts: centos
+  become: yes
+
+  tasks:
+    - name: Permit postgres Traffic
+      ansible.posix.firewalld:
+        service: postgresql
+        permanent: true
+        state: enabled
+      notify: Restart firewalld
+      become: yes
+      when: "'postgres' in inventory_hostname"
+
+  handlers:
+    - name: Restart firewalld
+      service:
+        name: firewalld
+        state: restarted
+      when: "'postgres' in inventory_hostname"
+
+- name: Configuration PHP File
+  hosts: centos
+  become: yes
+  vars_files:
+    - ./vars.yaml
+  tasks:
+    - name: Copy PHP file
+      copy:
+        src: index.php
+        dest: /var/www/html/index.php
+      when: "'http' in inventory_hostname"
+
+    - name: Replace PostgreSQL configuration in PHP file
+      replace:
+        path: /var/www/html/index.php
+        regexp: "<your_postgresql_host>"
+        replace: "{{ login_host }}"
+      when: "'http' in inventory_hostname"
+
+    - name: Replace PostgreSQL user in PHP file
+      replace:
+        path: /var/www/html/index.php
+        regexp: "<your_postgresql_user>"
+        replace: "{{ login_user }}"
+      when: "'http' in inventory_hostname"
+
+    - name: Replace PostgreSQL password in PHP file
+      replace:
+        path: /var/www/html/index.php
+        regexp: "<your_postgresql_password>"
+        replace: "{{ login_password }}"
+      when: "'http' in inventory_hostname"
+
+    - name: Replace PostgreSQL database in PHP file
+      replace:
+        path: /var/www/html/index.php
+        regexp: "<your_postgresql_db>"
+        replace: "{{ login_db }}"
+      when: "'http' in inventory_hostname"
+
