@@ -1,32 +1,56 @@
 ---
 - name: Write to PostgreSQL from CSV
   hosts: centos
+  gather_facts: false
   vars_files:
     - ./vars.yaml
-  gather_facts: false
   tasks:
-    - name: Read CSV
-      read_csv:
+    - name: Copy CSV File
+      copy:
+        src: "{{ src_csv_file }}"
+        dest: "{{ csv_file }}"
+      when: "'postgres' in inventory_hostname"
+
+    - name: Change Owner 
+      file:
         path: "{{ csv_file }}"
-        delimiter: ','
-      register: csv_data
+        owner: postgres
+        group: postgres
+        mode: "777"
       when: "'postgres' in inventory_hostname"
 
-    - name: Get CSV column names
-      set_fact:
-        column_names: "{{ csv_data.list[0] }}"
+    - name: Change Mode
+      file:
+        path: /tmp
+        mode: "777"
       when: "'postgres' in inventory_hostname"
 
-    - name: Write PostgreSQL
-      postgresql_query:
+- name: Chcon with SELINUX
+  hosts: centos
+  vars_files:
+    - ./vars2.yaml
+  tasks:
+    - name: Chcon with SELINUX
+      sefcontext:
+        target: "{{ csv_file }}"
+        setype: "postgresql_tmp_t"
+      become: true
+      when: "'postgres' in inventory_hostname"
+
+- name: Write to PostgreSQL from CSV
+  hosts: centos
+  gather_facts: false
+  vars_files:
+    - ./vars.yaml
+  tasks:
+    - name: Copy data from CSV file to PostgreSQL table
+      postgresql_copy:
         db: "{{ login_db }}"
         login_user: "{{ login_user }}"
         login_password: "{{ login_password }}"
-        query: |
-          INSERT INTO "{{ table_name }}" ({{ column_names | join(', ') }})
-          VALUES
-          {% for row in csv_data.list %}
-            {% set values = row | map('quote') | join(', ') %}
-            ({{ values }}){% if not loop.last %},{% endif %}
-          {% endfor %}
+        copy_from: "{{ csv_file }}"
+        dst: "{{ table_name }}"
+        options:
+          format: csv
+          header: true
       when: "'postgres' in inventory_hostname"
